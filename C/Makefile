@@ -1,4 +1,4 @@
 main: HelloWorld.h
-	gcc HelloWorld.c -lm -ldl -lX11 -lglfw3 -lpthread -o HelloWorld.o
+	gcc HelloWorld.c -lglfw3 -lpthread -lX11 -ldl -lm -o HelloWorld.o
 clean:
 	rm HelloWorld.o
