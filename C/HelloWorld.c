@@ -16,7 +16,7 @@ int main(){
 
 
 bool initializeGlfw(){
-    glewExperimental = true;
+    //    glewExperimental = true;
     if(!glfwInit()){
 	fprintf(stderr, "Failed to initialize GLFW\n");
 	return false;

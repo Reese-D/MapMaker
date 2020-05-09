@@ -1,0 +1,11 @@
+
+## GLFW instructions ##
+
+//Get our build dependencies as such
+sudo apt-get build-dep glfw3
+
+//download the glfw source package, unzip it then type the following commands:
+
+cmake -G "Unix Makefiles
+make
+sudo make install
