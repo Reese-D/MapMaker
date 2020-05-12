@@ -22,7 +22,7 @@ int main(){
     GLuint vbo = setupDraw();
 
     //load our shader
-    FILE* fp = fopen("../src/shaders/FragmentShader.glsl", "r");
+    FILE* fp = fopen("./src/shaders/FragmentShader.glsl", "r");
     loadShader(fp, GL_VERTEX_SHADER);
     
     do{

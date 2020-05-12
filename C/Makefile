@@ -6,6 +6,9 @@ BIN=./bin/
 IFLAGS=-lglfw3 -lGLEW -lGL -lpthread -lX11 -ldl -lm
 DIRS=-Isrc/headers/
 
+run: $(BIN)HelloWorld.o
+	$(BIN)HelloWorld.o
+
 main: $(H)HelloWorld.h $(C)HelloWorld.c shaderLoader bin
 	$(CC) $(DIRS) $(C)HelloWorld.c $(IFLAGS) -o $(BIN)HelloWorld.o $(BIN)ShaderLoader.o
 
