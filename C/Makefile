@@ -4,11 +4,13 @@ H=./src/headers/
 GL=./src/shaders/
 BIN=./bin/
 IFLAGS=-lglfw3 -lGLEW -lGL -lpthread -lX11 -ldl -lm
+DIRS=-Isrc/headers/
+
 main: $(H)HelloWorld.h $(C)HelloWorld.c shaderLoader bin
-	$(CC) $(C)HelloWorld.c $(IFLAGS) -o $(BIN)HelloWorld.o
+	$(CC) $(DIRS) $(C)HelloWorld.c $(IFLAGS) -o $(BIN)HelloWorld.o $(BIN)ShaderLoader.o
 
 shaderLoader: $(H)ShaderLoader.h $(C)ShaderLoader.c bin
-	$(CC) -c $(C)ShaderLoader.c -lGLEW -o $(BIN)ShaderLoader.o
+	$(CC) $(DIRS) -c $(C)ShaderLoader.c -lGLEW -o $(BIN)ShaderLoader.o
 
 bin:
 	mkdir bin

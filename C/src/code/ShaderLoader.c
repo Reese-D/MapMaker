@@ -1,4 +1,4 @@
-#include "../headers/ShaderLoader.h"
+#include "ShaderLoader.h"
 
 void loadShader(FILE* fp, GLenum shaderType)
 {

@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../headers/HelloWorld.h"
-
+#include "HelloWorld.h"
+#include "ShaderLoader.h"
 
 int main(){
     bool success = true;
@@ -20,6 +20,13 @@ int main(){
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
     GLuint vbo = setupDraw();
+
+    //load our shader
+    FILE* fp = fopen("../src/shaders/FragmentShader.glsl", "r");
+    if(fp == NULL){
+	fprintf(stderr, "can't find file for fragment shader");
+    }
+    loadShader(fp, GL_VERTEX_SHADER);
     
     do{
 	// Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
