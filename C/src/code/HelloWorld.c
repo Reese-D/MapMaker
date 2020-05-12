@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "HelloWorld.h"
+#include "../headers/HelloWorld.h"
 
 
 int main(){
@@ -9,27 +9,25 @@ int main(){
     
     success |= initializeGlfw();
     setup();
-    
-    
+        
     GLFWwindow* window = glfwCreateWindow(1024, 768, "Tutorial 01", NULL, NULL);
     glfwMakeContextCurrent(window);
-
-    //have to initialize glew AFTER making context window
+    
     success |= initializeGlew();
     
-    // Ensure we can capture the escape key being pressed below
-    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
-
-    // Dark blue background
+    
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);// Ensure we can capture the escape key being pressed below
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
+    GLuint vbo = setupDraw();
+    
     do{
 	// Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
 	glClear( GL_COLOR_BUFFER_BIT );
 
-	// Draw nothing, see you in tutorial 2 !
-
-		
+	// Draw nothing
+	draw();
+	
 	// Swap buffers
 	glfwSwapBuffers(window);
 	glfwPollEvents();
@@ -42,7 +40,27 @@ int main(){
     glfwTerminate();
 
     return success;
+}
 
+GLuint setupDraw(){
+    float vertices[] =
+	{
+	 0.0f, 0.5f,
+	 0.5f, -0.5f,
+	 -0.5f, -0.5f
+	};
+    
+    GLuint vertexBufferObject;
+    glGenBuffers(1, &vertexBufferObject);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    //GL_STATIC_DRAW uploaded once drawn many times
+    //GL_DYNAMIC_DRAW created once, altered from time to time, drawn multiple times
+    //GL_STREAM_DRAW uploaded once, drawn once
+}
+
+void draw(){
+    
 }
 
 
