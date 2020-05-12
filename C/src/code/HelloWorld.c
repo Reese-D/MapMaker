@@ -23,9 +23,6 @@ int main(){
 
     //load our shader
     FILE* fp = fopen("../src/shaders/FragmentShader.glsl", "r");
-    if(fp == NULL){
-	fprintf(stderr, "can't find file for fragment shader");
-    }
     loadShader(fp, GL_VERTEX_SHADER);
     
     do{
