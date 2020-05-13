@@ -1,6 +1,6 @@
 #include "ShaderLoader.h"
 
-void loadShader(FILE* fp, GLenum shaderType)
+GLuint loadShader(FILE* fp, GLenum shaderType)
 {
     if(fp == NULL){
 	fprintf(stderr, "failed to load shader\n");
@@ -32,5 +32,6 @@ void loadShader(FILE* fp, GLenum shaderType)
     }
 
     fprintf(stderr, logBuffer);
-    
+
+    return shader;
 }

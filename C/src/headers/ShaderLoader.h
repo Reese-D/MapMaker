@@ -5,6 +5,6 @@
 #include <stdio.h>
 #include <GL/glew.h>
 
-void loadShader(FILE* fp, GLenum shaderType);
+GLuint loadShader(FILE* fp, GLenum shaderType);
 
 #endif
