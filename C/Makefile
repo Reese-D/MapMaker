@@ -10,10 +10,13 @@ run: $(BIN)HelloWorld.o
 	$(BIN)HelloWorld.o
 
 main: $(H)HelloWorld.h $(C)HelloWorld.c shaderLoader bin
-	$(CC) $(DIRS) $(C)HelloWorld.c $(IFLAGS) -o $(BIN)HelloWorld.o $(BIN)ShaderLoader.o
+	$(CC) $(DIRS) $(C)HelloWorld.c $(IFLAGS) -o $(BIN)HelloWorld.o $(BIN)ShaderLoader.o $(BIN)ReadFile.o
 
-shaderLoader: $(H)ShaderLoader.h $(C)ShaderLoader.c bin
-	$(CC) $(DIRS) -c $(C)ShaderLoader.c -lGLEW -o $(BIN)ShaderLoader.o
+shaderLoader: $(H)ShaderLoader.h $(C)ShaderLoader.c readFile bin
+	$(CC) $(DIRS) -c $(C)ShaderLoader.c -lGLEW -o $(BIN)ShaderLoader.o 
+
+readFile: $(H)ReadFile.h $(C)ReadFile.c bin
+	$(CC) $(DIRS) -c $(C)ReadFile.c -o $(BIN)ReadFile.o
 
 bin:
 	mkdir bin
