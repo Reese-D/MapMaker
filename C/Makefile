@@ -6,8 +6,8 @@ BIN=./bin/
 IFLAGS=-lglfw3 -lGLEW -lGL -lpthread -lX11 -ldl -lm
 DIRS=-Isrc/headers/
 
-run: $(BIN)HelloWorld.o
-	$(BIN)HelloWorld.o
+make link: main $(BIN)HelloWorld.o
+	ln -s $(BIN)HelloWorld.o HelloWorld
 
 main: $(H)HelloWorld.h $(C)HelloWorld.c shaderLoader bin
 	$(CC) $(DIRS) $(C)HelloWorld.c $(IFLAGS) -o $(BIN)HelloWorld.o $(BIN)ShaderLoader.o $(BIN)ReadFile.o
@@ -24,6 +24,6 @@ bin:
 .PHONY: clean
 
 clean:
-	rm $(BIN)HelloWorld.o $(BIN)ShaderLoader.o
+	rm $(BIN)HelloWorld.o $(BIN)ShaderLoader.o HelloWorld
 
 
