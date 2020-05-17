@@ -1,7 +1,6 @@
 #include "ShaderLoader.h"
-#include "ReadFile.h"
 
-GLuint loadShader(FILE* fp, GLenum shaderType)
+GLuint loadShader(FILE* fp, GLenum shaderType, const char* buffer)
 {
     if(fp == NULL){
 	fprintf(stderr, "failed to load shader\n");
@@ -9,17 +8,15 @@ GLuint loadShader(FILE* fp, GLenum shaderType)
     }
     
     size_t* len;
-    char* buffer;
-    
-    buffer = loadFile(fp);
-
-    const char* constBuffer = buffer;
+    fprintf(stderr, "%s", buffer);
+    fprintf(stderr, "----------\n");
     GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &constBuffer, NULL);
+    glShaderSource(shader, 1, &buffer, NULL);
     glCompileShader(shader);
     
     GLint status;
     glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+
 
     char logBuffer[512];
     glGetShaderInfoLog(shader, 512, NULL, logBuffer);
@@ -28,6 +25,5 @@ GLuint loadShader(FILE* fp, GLenum shaderType)
 	fprintf(stderr, "Fatal error occured when attempting to compile shader \n");
     }
 
-    free(buffer);
     return shader;
 }

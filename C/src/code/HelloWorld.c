@@ -3,6 +3,8 @@
 
 #include "HelloWorld.h"
 #include "ShaderLoader.h"
+#include "MatrixOperations.h"
+#include "ReadFile.h"
 
 int main(){
     bool success = true;
@@ -19,20 +21,42 @@ int main(){
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-
     
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);// Ensure we can capture the escape key being pressed below
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
     GLuint* bufferObjects;
-    int bufferCount = setupDraw(bufferObjects);
+    GLuint elementBufferObject;
+    GLuint vertexBufferObject;
+    
+    float vertices[] = {
+    -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
+     0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // Top-right
+     0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // Bottom-right
+    -0.5f, -0.5f, 1.0f, 1.0f, 1.0f  // Bottom-left
+    };
+    
+    GLuint elements[] = {
+    0, 1, 2,
+    2, 3, 0
+    };
 
-    //load our shader
+    glGenBuffers(1, &vertexBufferObject);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &elementBufferObject);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBufferObject);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
+
+    //load shaders
     FILE* fragment_fp = fopen("./src/shaders/FragmentShader.glsl", "r");
-    GLuint fragmentShader = loadShader(fragment_fp, GL_FRAGMENT_SHADER);
+    char* fragmentBuffer = loadFile(fragment_fp);
+    GLuint fragmentShader = loadShader(fragment_fp, GL_FRAGMENT_SHADER, fragmentBuffer);
 
     FILE* vertex_fp = fopen("./src/shaders/VertexShader.glsl", "r");
-    GLuint vertexShader = loadShader(vertex_fp, GL_VERTEX_SHADER);
+    char* vertexBuffer = loadFile(vertex_fp);
+    GLuint vertexShader = loadShader(vertex_fp, GL_VERTEX_SHADER, vertexBuffer);
 
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
@@ -41,6 +65,24 @@ int main(){
     glBindFragDataLocation(shaderProgram, 0, "outColor");
     glLinkProgram(shaderProgram);
     glUseProgram(shaderProgram);
+
+    //TRANSFORMS
+    vec3 translationVector = {0.2f, 0.2f, 0.2f};
+    GLfloat translation[16];
+
+    translate(translationVector, translation);
+
+    GLint uniTrans = glGetUniformLocation(shaderProgram, "trans");
+
+    /* float* t = &translation[0]; */
+    for(int i = 0; i < 16; i++){
+    	fprintf(stderr, "%f ", translation[i]);
+    	if(i%4 == 3){
+    	    fprintf(stderr, "\n");
+    	}
+    }
+
+    glUniformMatrix4fv(uniTrans, 1, GL_FALSE, translation);
 
     GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
     glEnableVertexAttribArray(posAttrib);
@@ -72,45 +114,15 @@ int main(){
     glDeleteProgram(shaderProgram);
     glDeleteShader(fragmentShader);
     glDeleteShader(vertexShader);
-    glDeleteBuffers(bufferCount, bufferObjects);
+    glDeleteBuffers(1, &vertexBufferObject);
+    glDeleteBuffers(1, &elementBufferObject);
     glDeleteVertexArrays(1, &vao);
-    
+
+    free(fragmentBuffer);
+    free(vertexBuffer);
     glfwTerminate();
 
     return success;
-}
-
-int setupDraw(GLuint* buffers){
-
-    float vertices[] = {
-    -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
-     0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // Top-right
-     0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // Bottom-right
-    -0.5f, -0.5f, 1.0f, 1.0f, 1.0f  // Bottom-left
-    };
-
-
-    GLuint vertexBufferObject;
-    glGenBuffers(1, &vertexBufferObject);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    GLuint elements[] = {
-    0, 1, 2,
-    2, 3, 0
-    };
-
-    GLuint elementBufferObject;
-    glGenBuffers(1, &elementBufferObject);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBufferObject);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
-
-    //GL_STATIC_DRAW uploaded once drawn many times
-    //GL_DYNAMIC_DRAW created once, altered from time to time, drawn multiple times
-    //GL_STREAM_DRAW uploaded once, drawn once
-    GLuint bufferObjects[] = {vertexBufferObject, elementBufferObject};
-    buffers = bufferObjects; 
-    return 2;
 }
 
 void draw(){

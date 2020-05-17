@@ -13,7 +13,7 @@ char* loadFile(FILE* fp)
     lSize = ftell(fp);
     rewind(fp);
 
-    buffer = malloc(lSize+1);
+    buffer = malloc(lSize);
     
     if(!buffer){
 	fclose(fp);
