@@ -24,7 +24,8 @@ int main(){
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);// Ensure we can capture the escape key being pressed below
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
-    GLuint vbo = setupDraw();
+    GLuint* bufferObjects;
+    int bufferCount = setupDraw(bufferObjects);
 
     //load our shader
     FILE* fragment_fp = fopen("./src/shaders/FragmentShader.glsl", "r");
@@ -71,7 +72,7 @@ int main(){
     glDeleteProgram(shaderProgram);
     glDeleteShader(fragmentShader);
     glDeleteShader(vertexShader);
-    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(bufferCount, bufferObjects);
     glDeleteVertexArrays(1, &vao);
     
     glfwTerminate();
@@ -79,26 +80,41 @@ int main(){
     return success;
 }
 
-GLuint setupDraw(){
+int setupDraw(GLuint* buffers){
 
     float vertices[] = {
-			0.0f,  0.5f, 1.0f, 0.0f, 0.0f, // Vertex 1: Red
-			0.5f, -0.5f, 0.0f, 1.0f, 0.0f, // Vertex 2: Green
-			-0.5f, -0.5f, 0.0f, 0.0f, 1.0f  // Vertex 3: Blue
+    -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
+     0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // Top-right
+     0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // Bottom-right
+    -0.5f, -0.5f, 1.0f, 1.0f, 1.0f  // Bottom-left
     };
-    
+
+
     GLuint vertexBufferObject;
     glGenBuffers(1, &vertexBufferObject);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    GLuint elements[] = {
+    0, 1, 2,
+    2, 3, 0
+    };
+
+    GLuint elementBufferObject;
+    glGenBuffers(1, &elementBufferObject);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBufferObject);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
+
     //GL_STATIC_DRAW uploaded once drawn many times
     //GL_DYNAMIC_DRAW created once, altered from time to time, drawn multiple times
     //GL_STREAM_DRAW uploaded once, drawn once
-    return vertexBufferObject;
+    GLuint bufferObjects[] = {vertexBufferObject, elementBufferObject};
+    buffers = bufferObjects; 
+    return 2;
 }
 
 void draw(){
-    glDrawArrays(GL_TRIANGLES, 0, 3);	
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);	
 }
 
 
