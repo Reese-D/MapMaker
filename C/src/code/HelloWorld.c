@@ -68,14 +68,14 @@ int main(){
     glUseProgram(shaderProgram);
 
     //TRANSFORMS
-    mat4 translation = GLM_MAT4_IDENTITY_INIT;
-    vec3 translationVector = {0.4f, 0.2f, 0.2f};
+    mat4 transformation = GLM_MAT4_IDENTITY_INIT;
+    vec3 rotationAxis = {0.0f, 0.0f, 1.0f};
 
-    glm_translate(translation, translationVector);
-
+    //uses radians not degrees, clockwise is negative (45 degree clockwise rotation)
+    glm_rotate(transformation, -M_PI/4.0f, rotationAxis);
     GLint uniTrans = glGetUniformLocation(shaderProgram, "trans");
 
-    glUniformMatrix4fv(uniTrans, 1, GL_FALSE, translation[0]);
+    glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transformation[0]);
 
     GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
     glEnableVertexAttribArray(posAttrib);
