@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <cglm/call.h>
 
 #include "HelloWorld.h"
 #include "ShaderLoader.h"
-#include "MatrixOperations.h"
+//#include "MatrixOperations.h"
 #include "ReadFile.h"
 
 int main(){
@@ -67,22 +68,14 @@ int main(){
     glUseProgram(shaderProgram);
 
     //TRANSFORMS
-    vec3 translationVector = {0.2f, 0.2f, 0.2f};
-    GLfloat translation[16];
+    mat4 translation = GLM_MAT4_IDENTITY_INIT;
+    vec3 translationVector = {0.4f, 0.2f, 0.2f};
 
-    translate(translationVector, translation);
+    glm_translate(translation, translationVector);
 
     GLint uniTrans = glGetUniformLocation(shaderProgram, "trans");
 
-    /* float* t = &translation[0]; */
-    for(int i = 0; i < 16; i++){
-    	fprintf(stderr, "%f ", translation[i]);
-    	if(i%4 == 3){
-    	    fprintf(stderr, "\n");
-    	}
-    }
-
-    glUniformMatrix4fv(uniTrans, 1, GL_FALSE, translation);
+    glUniformMatrix4fv(uniTrans, 1, GL_FALSE, translation[0]);
 
     GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
     glEnableVertexAttribArray(posAttrib);
