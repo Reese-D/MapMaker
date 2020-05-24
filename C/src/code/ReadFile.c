@@ -13,7 +13,7 @@ char* loadFile(FILE* fp)
     lSize = ftell(fp);
     rewind(fp);
 
-    buffer = malloc(lSize);
+    buffer = calloc(1, lSize);
     
     if(!buffer){
 	fclose(fp);
@@ -22,7 +22,7 @@ char* loadFile(FILE* fp)
 	exit(1);
     }
     
-    int result = fread(buffer, lSize, 1, fp);
+    int result = fread(buffer, lSize-1, 1, fp);
 
     if( result != 1){
 	fclose(fp);

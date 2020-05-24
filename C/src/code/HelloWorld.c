@@ -6,6 +6,7 @@
 #include "ShaderLoader.h"
 //#include "MatrixOperations.h"
 #include "ReadFile.h"
+#include "CubicNoise.h"
 
 int main(){
     bool success = true;
@@ -29,6 +30,15 @@ int main(){
     GLuint* bufferObjects;
     GLuint elementBufferObject;
     GLuint vertexBufferObject;
+
+    /* CubicNoiseConfig config = cubicNoiseConfig2D(254, 16, 150, 150); */
+
+    /* for(int i = 0.0f, i < 1.0f; i += 0.01f){ */
+    /* 	for(int k = 0.0f; k < 1.0f; k+= 0.01f){ */
+	    
+    /* 	} */
+    /* } */
+
     
     float vertices[] = {
     -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
@@ -73,10 +83,26 @@ int main(){
 
     //uses radians not degrees, clockwise is negative (45 degree clockwise rotation)
     glm_rotate(transformation, -M_PI/4.0f, rotationAxis);
-    GLint uniTrans = glGetUniformLocation(shaderProgram, "trans");
+    GLint uniTrans = glGetUniformLocation(shaderProgram, "model");
 
     glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transformation[0]);
 
+    vec3 eye = {1.2f, 1.2f, 1.2f};
+    vec3 center = {0.0f, 0.0f, 0.0f};
+    vec3 up = {0.0f, 0.0f, 1.0f};
+    mat4 view;
+    glm_lookat(eye, center, up, view);
+
+    GLint uniView = glGetUniformLocation(shaderProgram, "view");
+    glUniformMatrix4fv(uniView, 1, GL_FALSE, view[0]);
+
+    //800 / 600 is the aspect ratio of the screen
+    mat4 projection;
+    glm_perspective(0.785398f, 800.0f / 600.0f, 1.0f, 10.0f, projection);
+    GLint uniProjection = glGetUniformLocation(shaderProgram, "projection");
+    glUniformMatrix4fv(uniProjection, 1, GL_FALSE, projection[0]);
+
+    
     GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
     glEnableVertexAttribArray(posAttrib);
     glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 5*sizeof(GLfloat), 0);
@@ -87,12 +113,11 @@ int main(){
     glVertexAttribPointer(triangleColor, 3, GL_FLOAT, GL_FALSE,
                        5*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
 
-    
+
     do{
 	// Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
 	glClear( GL_COLOR_BUFFER_BIT );
 
-	// Draw nothing
 	draw();
 
 	// Swap buffers
