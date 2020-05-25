@@ -31,27 +31,69 @@ int main(){
     GLuint elementBufferObject;
     GLuint vertexBufferObject;
 
-    /* CubicNoiseConfig config = cubicNoiseConfig2D(254, 16, 150, 150); */
+    cubicNoiseConfig config = cubicNoiseConfig2D(2541512, 10, 42949672, 42949672);
 
-    /* for(int i = 0.0f, i < 1.0f; i += 0.01f){ */
-    /* 	for(int k = 0.0f; k < 1.0f; k+= 0.01f){ */
-	    
-    /* 	} */
-    /* } */
+    const int dimensions = 10;
+    const int verticesSize = dimensions * dimensions * 6;
+    const float increment = (1.0f / dimensions) * 2.0f;
 
-    
-    float vertices[] = {
-    -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
-     0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // Top-right
-     0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // Bottom-right
-    -0.5f, -0.5f, 1.0f, 1.0f, 1.0f  // Bottom-left
-    };
-    
-    GLuint elements[] = {
-    0, 1, 2,
-    2, 3, 0
-    };
+    float yValue = 1.0f - (increment / 2.0f);
+    float vertices[verticesSize];
+    int counter = 0;
+    for(int i = 0; i < dimensions; i++){
+    	float xValue = -1.0f + (increment / 2.0f);
+    	for(int k = 0; k < dimensions; k++){
+	    float noiseValue = cubicNoiseSample2D(config, xValue * 10, yValue* 10);
+    	    vertices[counter] = xValue;
+    	    vertices[counter + 1] = yValue;
+    	    vertices[counter + 2] = 0.0f;
+	    vertices[counter + 3] = noiseValue;
+	    vertices[counter + 4] = noiseValue;
+    	    vertices[counter + 5] = noiseValue;//rand() / (float) RAND_MAX;
+	    fprintf(stderr, "%f\t", noiseValue);
+    	    /* fprintf(stderr, "x: %f, y: %f\t", vertices[counter], vertices[counter+1]); */
+    	    xValue += increment;
+	    counter+=6;
+    	}
+    	yValue -= increment;
+    }
+    fprintf(stderr, "\n");
+    /* //we're looping but exlcuding the last column AND row */
+    /* //we're going to connect a point to the point one colum to its right and one row below to make a trianglecolor */
+    /* //we're also going to square it off by taking those other two points, and the point to below and to the right of our original point to make another triangle */
+    int elementSize = (dimensions - 1) * (dimensions - 1) * 2 * 3;
+    GLuint elements[elementSize];
+    counter = 0;
+    for(int i = 0; i < dimensions - 1; i++){
+    	for(int k = 0; k < dimensions - 1; k++){
+    	    int index = i * dimensions + k;
+    	    //first triangle
+	    elements[counter++] = index;
+    	    elements[counter++] = index + 1;
+	    elements[counter++] = index + dimensions;
+    	    //second triangle
+    	    elements[counter++] = index + dimensions;
+    	    elements[counter++] = index + 1;
+	    elements[counter++] = index + dimensions + 1;
+	}
+    }
+    /* float vertices[] = { */
+    /* 			-0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, // Top-left */
+    /* 			0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, // Top-right */
+    /* 			-0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f,  // Bottom-left */
+    /* 			0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f // Bottom-right */
+    /* }; */
 
+    /* GLuint elements[] = { */
+    /* 0, 1, 2, */
+    /* 2, 3, 0 */
+    /* }; */
+
+    fprintf(stderr, "vertice count: %i\n", verticesSize);
+    fprintf(stderr, "element count: %i\n", elementSize);
+    for(int i = 0; i < elementSize; i+=3){
+    	fprintf(stderr, "%i, %i, %i\n", elements[i], elements[i+1], elements[i+2]);
+    }
     glGenBuffers(1, &vertexBufferObject);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -105,21 +147,22 @@ int main(){
     
     GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
     glEnableVertexAttribArray(posAttrib);
-    glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 5*sizeof(GLfloat), 0);
+    glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 6*sizeof(GLfloat), 0);
 
 
     GLint triangleColor = glGetAttribLocation(shaderProgram, "colorIn");
     glEnableVertexAttribArray(triangleColor);
     glVertexAttribPointer(triangleColor, 3, GL_FLOAT, GL_FALSE,
-                       5*sizeof(GLfloat), (void*)(2*sizeof(GLfloat)));
+                       6*sizeof(GLfloat), (void*)(3*sizeof(GLfloat)));
 
 
     do{
 	// Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
 	glClear( GL_COLOR_BUFFER_BIT );
 
-	draw();
-
+	//draw();
+	glDrawElements(GL_TRIANGLES, elementSize, GL_UNSIGNED_INT, 0);
+	
 	// Swap buffers
 	glfwSwapBuffers(window);
 	glfwPollEvents();

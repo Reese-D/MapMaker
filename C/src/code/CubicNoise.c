@@ -1,5 +1,5 @@
 #include <math.h>
-#include "cubicNoise.h"
+#include "CubicNoise.h"
 
 #define CUBIC_NOISE_RAND_A 134775813
 #define CUBIC_NOISE_RAND_B 1103515245
