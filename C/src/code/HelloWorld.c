@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cglm/call.h>
+#include <time.h>
 
 #include "HelloWorld.h"
 #include "ShaderLoader.h"
@@ -8,7 +9,14 @@
 #include "ReadFile.h"
 #include "open-simplex-noise.h"
 
+#define dimensions 256
+
+
 int main(){
+
+    
+    srand(time(NULL));
+    
     bool success = true;
     
     success |= initializeGlfw();
@@ -33,14 +41,14 @@ int main(){
 
     //cubicNoiseConfig config = cubicNoiseConfig2D(2541512, 10, 42949672, 42949672);
     struct osn_context *ctx;
-    open_simplex_noise(53371, &ctx);
+    open_simplex_noise(rand(), &ctx);
 
     double v0, v1, v2;
-    
-    const int dimensions = 256;
+
+    const double noise_squish = (rand() / (double) RAND_MAX) * 16.0;
     const int verticesSize = dimensions * dimensions * 6;
     const float increment = (1.0f / dimensions) * 2.0f;
-    const double noise_squish = 7.0;
+    
     
     /* double min = 10; */
     /* double max = -10; */
