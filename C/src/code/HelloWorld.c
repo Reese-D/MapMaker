@@ -9,11 +9,11 @@
 #include "ReadFile.h"
 #include "open-simplex-noise.h"
 
-#define dimensions 256
+#define dimensions 1000
 
 
 int main(){
-
+    const double waterLevel = 0.4;
     
     srand(time(NULL));
     
@@ -46,7 +46,8 @@ int main(){
     double v0, v1, v2;
 
     const double noise_squish = (rand() / (double) RAND_MAX) * 16.0;
-    const int verticesSize = dimensions * dimensions * 6;
+    const double height_squish = 3.0;
+
     const float increment = (1.0f / dimensions) * 2.0f;
     
     
@@ -55,7 +56,8 @@ int main(){
     double rgb;
 
     float yValue = 1.0f - (increment / 2.0f);
-    float vertices[verticesSize];
+    const int verticesSize = dimensions * dimensions * 6;
+    float *vertices = malloc(sizeof(float) * verticesSize);
     int counter = 0;
     
     for(int i = 0; i < dimensions; i++){
@@ -68,31 +70,34 @@ int main(){
 	    			     (double) yValue * noise_squish  / 2);
 	    v2 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 1.0,
 	    			     (double) yValue * noise_squish  / 1);
-	    rgb = v0 * 4.0 / 7.0 + v1 * 2.0 / 7.0 + v2 * 1.0 / 7.0;
+	    double noiseValue = v0 * 4.0 / 7.0 + v1 * 2.0 / 7.0 + v2 * 1.0 / 7.0;
 
-	    rgb += 0.5;//(noiseValue * 10.0 + 1.0)/2.0;
+	    rgb = noiseValue + 0.5;//(noiseValue * 10.0 + 1.0)/2.0;
 	    if(rgb < 0.0){
 		rgb = 0.0;
 	    }
 	    if(rgb > 1.0){
 		rgb = 1.0;
 	    }
-	    /* if(rgb < min){ */
-	    /* 	min = rgb; */
-	    /* } */
-
-	    /* if(rgb > max){ */
-	    /* 	max = rgb; */
-	    /* } */
-
+	    
+	    bool belowWaterLevel = false;
+	    if(rgb <= waterLevel){
+		belowWaterLevel = true;
+		rgb = 0.0f;
+	    }
 
     	    vertices[counter] = xValue;
     	    vertices[counter + 1] = yValue;
-    	    vertices[counter + 2] = rgb / 3.0;
+    	    vertices[counter + 2] = rgb / height_squish;
+
 	    vertices[counter + 3] = rgb;
 	    vertices[counter + 4] = rgb;
-    	    vertices[counter + 5] = rgb;//rand() / (float) RAND_MAX;
+    	    vertices[counter + 5] = rgb;
 
+	    if(belowWaterLevel == true){
+		vertices[counter + 5] = (1.0 - waterLevel) + noiseValue + 0.5;
+		vertices[counter + 2] = waterLevel / height_squish;
+	    }
     	    xValue += increment;
 	    counter+=6;
     	}
@@ -107,7 +112,7 @@ int main(){
     //we're going to connect a point to the point one colum to its right and one row below to make a trianglecolor
     //we're also going to square it off by taking those other two points, and the point to below and to the right of our original point to make another triangle
     int elementSize = (dimensions - 1) * (dimensions - 1) * 2 * 3;
-    GLuint elements[elementSize];
+    GLuint *elements = malloc(sizeof(GLuint) * elementSize);
     counter = 0;
     for(int i = 0; i < dimensions - 1; i++){
     	for(int k = 0; k < dimensions - 1; k++){
@@ -128,11 +133,11 @@ int main(){
 
     glGenBuffers(1, &vertexBufferObject);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * verticesSize, vertices, GL_STATIC_DRAW);
 
     glGenBuffers(1, &elementBufferObject);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBufferObject);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * elementSize, elements, GL_STATIC_DRAW);
 
     //load shaders
     FILE* fragment_fp = fopen("./src/shaders/FragmentShader.glsl", "r");
@@ -213,6 +218,8 @@ int main(){
 
     free(fragmentBuffer);
     free(vertexBuffer);
+    free(elements);
+    free(vertices);
     glfwTerminate();
 
     return success;
