@@ -6,7 +6,7 @@
 #include "ShaderLoader.h"
 //#include "MatrixOperations.h"
 #include "ReadFile.h"
-#include "CubicNoise.h"
+#include "open-simplex-noise.h"
 
 int main(){
     bool success = true;
@@ -31,36 +31,73 @@ int main(){
     GLuint elementBufferObject;
     GLuint vertexBufferObject;
 
-    cubicNoiseConfig config = cubicNoiseConfig2D(2541512, 10, 42949672, 42949672);
+    //cubicNoiseConfig config = cubicNoiseConfig2D(2541512, 10, 42949672, 42949672);
+    struct osn_context *ctx;
+    open_simplex_noise(53371, &ctx);
 
-    const int dimensions = 10;
+    double v0, v1, v2;
+    
+    const int dimensions = 256;
     const int verticesSize = dimensions * dimensions * 6;
     const float increment = (1.0f / dimensions) * 2.0f;
+    const double noise_squish = 7.0;
+    
+    /* double min = 10; */
+    /* double max = -10; */
+    double rgb;
 
     float yValue = 1.0f - (increment / 2.0f);
     float vertices[verticesSize];
     int counter = 0;
+    
     for(int i = 0; i < dimensions; i++){
     	float xValue = -1.0f + (increment / 2.0f);
     	for(int k = 0; k < dimensions; k++){
-	    float noiseValue = cubicNoiseSample2D(config, xValue * 10, yValue* 10);
+	    /* Use three octaves: frequency N, N/2 and N/4 with relative amplitudes 4:2:1. */
+	    v0 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 4.0,
+	    			     (double) yValue * noise_squish  / 4.0);
+	    v1 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 2.0,
+	    			     (double) yValue * noise_squish  / 2);
+	    v2 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 1.0,
+	    			     (double) yValue * noise_squish  / 1);
+	    rgb = v0 * 4.0 / 7.0 + v1 * 2.0 / 7.0 + v2 * 1.0 / 7.0;
+
+	    rgb += 0.5;//(noiseValue * 10.0 + 1.0)/2.0;
+	    if(rgb < 0.0){
+		rgb = 0.0;
+	    }
+	    if(rgb > 1.0){
+		rgb = 1.0;
+	    }
+	    /* if(rgb < min){ */
+	    /* 	min = rgb; */
+	    /* } */
+
+	    /* if(rgb > max){ */
+	    /* 	max = rgb; */
+	    /* } */
+
+
     	    vertices[counter] = xValue;
     	    vertices[counter + 1] = yValue;
-    	    vertices[counter + 2] = 0.0f;
-	    vertices[counter + 3] = noiseValue;
-	    vertices[counter + 4] = noiseValue;
-    	    vertices[counter + 5] = noiseValue;//rand() / (float) RAND_MAX;
-	    fprintf(stderr, "%f\t", noiseValue);
-    	    /* fprintf(stderr, "x: %f, y: %f\t", vertices[counter], vertices[counter+1]); */
+    	    vertices[counter + 2] = rgb / 3.0;
+	    vertices[counter + 3] = rgb;
+	    vertices[counter + 4] = rgb;
+    	    vertices[counter + 5] = rgb;//rand() / (float) RAND_MAX;
+
     	    xValue += increment;
 	    counter+=6;
     	}
     	yValue -= increment;
     }
-    fprintf(stderr, "\n");
-    /* //we're looping but exlcuding the last column AND row */
-    /* //we're going to connect a point to the point one colum to its right and one row below to make a trianglecolor */
-    /* //we're also going to square it off by taking those other two points, and the point to below and to the right of our original point to make another triangle */
+    /* fprintf(stderr, "min: %f\n", min); */
+    /* fprintf(stderr, "max: %f\n", max); */
+
+    open_simplex_noise_free(ctx);
+    
+    //we're looping but exlcuding the last column AND row
+    //we're going to connect a point to the point one colum to its right and one row below to make a trianglecolor
+    //we're also going to square it off by taking those other two points, and the point to below and to the right of our original point to make another triangle
     int elementSize = (dimensions - 1) * (dimensions - 1) * 2 * 3;
     GLuint elements[elementSize];
     counter = 0;
@@ -77,23 +114,10 @@ int main(){
 	    elements[counter++] = index + dimensions + 1;
 	}
     }
-    /* float vertices[] = { */
-    /* 			-0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, // Top-left */
-    /* 			0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, // Top-right */
-    /* 			-0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f,  // Bottom-left */
-    /* 			0.5f, -0.5f, 0.0f,  0.0f, 0.0f, 1.0f // Bottom-right */
-    /* }; */
-
-    /* GLuint elements[] = { */
-    /* 0, 1, 2, */
-    /* 2, 3, 0 */
-    /* }; */
 
     fprintf(stderr, "vertice count: %i\n", verticesSize);
     fprintf(stderr, "element count: %i\n", elementSize);
-    for(int i = 0; i < elementSize; i+=3){
-    	fprintf(stderr, "%i, %i, %i\n", elements[i], elements[i+1], elements[i+2]);
-    }
+
     glGenBuffers(1, &vertexBufferObject);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
