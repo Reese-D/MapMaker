@@ -9,7 +9,7 @@
 #include "ReadFile.h"
 #include "open-simplex-noise.h"
 
-#define dimensions 1000
+#define dimensions 4
 
 
 int main(){
@@ -56,7 +56,8 @@ int main(){
     double rgb;
 
     float yValue = 1.0f - (increment / 2.0f);
-    const int verticesSize = dimensions * dimensions * 6;
+    const int verticesPointSize = 9;
+    const int verticesSize = dimensions * dimensions * verticesPointSize;
     float *vertices = malloc(sizeof(float) * verticesSize);
     int counter = 0;
     
@@ -94,12 +95,17 @@ int main(){
 	    vertices[counter + 4] = rgb;
     	    vertices[counter + 5] = rgb;
 
+	    //these are normals that will be calculated later
+	    vertices[counter + 6] = 0.0;
+	    vertices[counter + 7] = 0.0;
+	    vertices[counter + 8] = 0.0;
+
 	    if(belowWaterLevel == true){
 		vertices[counter + 5] = (1.0 - waterLevel) + noiseValue + 0.5;
 		vertices[counter + 2] = waterLevel / height_squish;
 	    }
     	    xValue += increment;
-	    counter+=6;
+	    counter+=verticesPointSize;
     	}
     	yValue -= increment;
     }
@@ -107,11 +113,13 @@ int main(){
     /* fprintf(stderr, "max: %f\n", max); */
 
     open_simplex_noise_free(ctx);
+
     
     //we're looping but exlcuding the last column AND row
     //we're going to connect a point to the point one colum to its right and one row below to make a trianglecolor
     //we're also going to square it off by taking those other two points, and the point to below and to the right of our original point to make another triangle
-    int elementSize = (dimensions - 1) * (dimensions - 1) * 2 * 3;
+    const int elementPointSize = 3;
+    const int elementSize = (dimensions - 1) * (dimensions - 1) * 2 * elementPointSize;
     GLuint *elements = malloc(sizeof(GLuint) * elementSize);
     counter = 0;
     for(int i = 0; i < dimensions - 1; i++){
@@ -122,12 +130,63 @@ int main(){
     	    elements[counter++] = index + 1;
 	    elements[counter++] = index + dimensions;
     	    //second triangle
-    	    elements[counter++] = index + dimensions;
+
+	    elements[counter++] = index + dimensions;
     	    elements[counter++] = index + 1;
 	    elements[counter++] = index + dimensions + 1;
 	}
     }
 
+    //TODO: calculate normals here for each vertex (each vertex will share 4 triangles, need to calculate their normals and then add/normalize them
+    /* sudo code
+       
+       --Triangle Normals--
+       triangle ( v1, v2, v3 )
+       edge1 = v2-v1
+       edge2 = v3-v1
+       triangle.normal = cross(edge1, edge2).normalize()
+
+       --Vertex Normals--
+       triangle tr1, tr2, tr3 // all share vertex v1
+       v1.normal = normalize( tr1.normal + tr2.normal + tr3.normal )
+    */
+    /*----------------------------------- Calculate our normals --------------------------------------*/
+    //can probably push this into the same loop where we create the elements (seperate now incase we add zoom alter and vertices move but elements would stay the same)
+    for(int i = 0; i < elementSize; i+= elementPointSize){
+	//0 through 2 are vertices, 3 - 5 are colors, and 6 - 8 are the normals
+    	vec3 v1 = {vertices[elements[i] * verticesPointSize], vertices[elements[i] * verticesPointSize + 1], vertices[elements[i] * verticesPointSize + 2]};
+	vec3 v2 = {vertices[elements[i+1] * verticesPointSize], vertices[elements[i+1] * verticesPointSize + 1], vertices[elements[i+1] * verticesPointSize + 2]};
+	vec3 v3 = {vertices[elements[i+2] * verticesPointSize], vertices[elements[i+2] * verticesPointSize + 1], vertices[elements[i+2] * verticesPointSize + 2]};
+	
+	vec3 edge1, edge2, crossProduct, normal;
+	glm_vec3_sub(v2, v1, edge1);
+	glm_vec3_sub(v3, v1, edge2);
+	glm_vec3_cross(edge2, edge1, normal);
+
+	//each point occurs multiple times in this loop, so just add all of them together for now
+	for(int e = 0; e < 3; e++){
+	    for(int v = 0; v < 3; v++){
+		vertices[elements[i] * verticesPointSize + v + 6] += normal[v];
+	    }
+	}
+    }
+    /*------------------------------------------------------------------------------------------------*/
+
+    //now we normalize each item
+    for(int i = 0; i < verticesSize - 1; i += verticesPointSize){
+	fprintf(stderr, "%f\t%f\t%f\t-----\t", vertices[i+6], vertices[i+7], vertices[i+8]);
+	vec3 *normal = (vec3(*)) &vertices[i + 6];
+	glm_vec3_normalize(*normal);
+	fprintf(stderr, "%f\t%f\t%f\n", vertices[i+6], vertices[i+7], vertices[i+8]);
+	//vec3 normal = {vertices[i + 6], vertices[i + 7], vertices[i + 8]};
+	/* glm_vec3_normalize(normal); */
+	/* for(int k = 0; k < 3; k++){ */
+	/*     vertices[i * verticesPointSize + 6 + k] = normal[i]; */
+	/* } */
+	//fprintf(stderr, "%f, %f, %f\n", normal[0], normal[1], normal[2]);
+    }
+    
+    fprintf(stderr, "\n");
     fprintf(stderr, "vertice count: %i\n", verticesSize);
     fprintf(stderr, "element count: %i\n", elementSize);
 
@@ -140,16 +199,26 @@ int main(){
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * elementSize, elements, GL_STATIC_DRAW);
 
     //load shaders
-    FILE* fragment_fp = fopen("./src/shaders/FragmentShader.glsl", "r");
-    char* fragmentBuffer = loadFile(fragment_fp);
-    GLuint fragmentShader = loadShader(fragment_fp, GL_FRAGMENT_SHADER, fragmentBuffer);
-
     FILE* vertex_fp = fopen("./src/shaders/VertexShader.glsl", "r");
     char* vertexBuffer = loadFile(vertex_fp);
     GLuint vertexShader = loadShader(vertex_fp, GL_VERTEX_SHADER, vertexBuffer);
 
+    fprintf(stderr, "\n\n");
+
+    FILE* geometry_fp = fopen("./src/shaders/GeometryShader.glsl", "r");
+    char* geometryBuffer = loadFile(geometry_fp);
+    GLuint geometryShader = loadShader(geometry_fp, GL_GEOMETRY_SHADER, geometryBuffer);
+
+    fprintf(stderr, "\n\n");
+	
+    FILE* fragment_fp = fopen("./src/shaders/FragmentShader.glsl", "r");
+    char* fragmentBuffer = loadFile(fragment_fp);
+    GLuint fragmentShader = loadShader(fragment_fp, GL_FRAGMENT_SHADER, fragmentBuffer);
+
+
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, geometryShader);
     glAttachShader(shaderProgram, fragmentShader);
 
     glBindFragDataLocation(shaderProgram, 0, "outColor");
@@ -181,21 +250,24 @@ int main(){
     GLint uniProjection = glGetUniformLocation(shaderProgram, "projection");
     glUniformMatrix4fv(uniProjection, 1, GL_FALSE, projection[0]);
 
-    
-    GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+
+    GLint posAttrib = glGetAttribLocation(shaderProgram, "positionIn");
     glEnableVertexAttribArray(posAttrib);
-    glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 6*sizeof(GLfloat), 0);
+    glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, verticesPointSize*sizeof(GLfloat), 0);
 
 
     GLint triangleColor = glGetAttribLocation(shaderProgram, "colorIn");
     glEnableVertexAttribArray(triangleColor);
     glVertexAttribPointer(triangleColor, 3, GL_FLOAT, GL_FALSE,
-                       6*sizeof(GLfloat), (void*)(3*sizeof(GLfloat)));
+                       verticesPointSize*sizeof(GLfloat), (void*)(3*sizeof(GLfloat)));
 
-
+    GLint normalAttrib = glGetAttribLocation(shaderProgram, "normalIn");
+    glEnableVertexAttribArray(normalAttrib);
+    glVertexAttribPointer(normalAttrib, 3, GL_FLOAT, GL_FALSE,
+                       verticesPointSize*sizeof(GLfloat), (void*)(6*sizeof(GLfloat)));
     do{
 	// Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//draw();
 	glDrawElements(GL_TRIANGLES, elementSize, GL_UNSIGNED_INT, 0);
