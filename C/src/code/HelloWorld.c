@@ -10,7 +10,10 @@
 #include "open-simplex-noise.h"
 
 #define dimensions 1000
+#define windowWidth 1024
+#define windowHeight 768
 
+static mat4 transformation = GLM_MAT4_IDENTITY_INIT;
 
 int main(){
     const double waterLevel = 0.4;
@@ -22,7 +25,7 @@ int main(){
     success |= initializeGlfw();
     setup();
         
-    GLFWwindow* window = glfwCreateWindow(1024, 768, "Tutorial 01", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "Tutorial 01", NULL, NULL);
     glfwMakeContextCurrent(window);
     
     success |= initializeGlew();
@@ -157,7 +160,6 @@ int main(){
     glUseProgram(shaderProgram);
 
     //TRANSFORMS
-    mat4 transformation = GLM_MAT4_IDENTITY_INIT;
     vec3 rotationAxis = {0.0f, 0.0f, 1.0f};
 
     //uses radians not degrees, clockwise is negative (45 degree clockwise rotation)
@@ -193,10 +195,14 @@ int main(){
                        6*sizeof(GLfloat), (void*)(3*sizeof(GLfloat)));
 
 
+    glfwSetScrollCallback(window, scrollHandler);
     do{
 	// Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT) );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
+	mouseInputHandler(window, 0.03, 0.05);
+
+	glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transformation[0]);
 	//draw();
 	glDrawElements(GL_TRIANGLES, elementSize, GL_UNSIGNED_INT, 0);
 	
@@ -255,3 +261,34 @@ bool initializeGlfw(){
     }
     return true;
 }
+
+
+void mouseInputHandler(GLFWwindow* window, double sensitivity, double edgePercentage){
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+
+    //make sure we aren't outside the window
+    if(xpos < 0.0 || xpos > windowWidth || ypos < 0.0 || ypos > windowHeight){
+	return;
+    }
+    if(xpos < windowWidth * edgePercentage){
+    	glm_translate_x(transformation, sensitivity * -1.0);
+    }
+    else if(xpos > windowWidth - windowWidth * edgePercentage){
+    	glm_translate_x(transformation, sensitivity);
+    }
+
+    if(ypos < windowHeight * edgePercentage){
+    	glm_translate_y(transformation, sensitivity);
+    }
+    else if(ypos > windowHeight - windowHeight * edgePercentage){
+    	glm_translate_y(transformation, sensitivity * -1.0);
+    }
+}
+
+
+void scrollHandler(GLFWwindow *window, double xoffset, double yoffset){
+    glm_translate_z(transformation, yoffset * 0.03);
+    glm_translate_y(transformation, yoffset * 0.03);
+}
+

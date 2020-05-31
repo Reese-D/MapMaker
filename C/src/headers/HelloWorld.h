@@ -10,5 +10,6 @@ void draw();
 void setup();
 bool initializeGlew();
 bool initializeGlfw();
-
+void mouseInputHandler(GLFWwindow *window, double sensitivity, double edgePercentage);
+void scrollHandler(GLFWwindow *window, double xoffset, double yoffset);
 #endif
