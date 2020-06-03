@@ -14,11 +14,40 @@
 #define windowHeight 768
 
 static mat4 transformation = GLM_MAT4_IDENTITY_INIT;
+struct osn_context *ctx;
+double noise_squish;
 
+double getNoise(double xValue, double yValue){
+    double v0, v1, v2;
+    
+    /* Use three octaves: frequency N, N/2 and N/4 with relative amplitudes 4:2:1. */
+    v0 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 4.0,
+			     (double) yValue * noise_squish  / 4.0);
+    v1 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 2.0,
+			     (double) yValue * noise_squish  / 2);
+    v2 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 1.0,
+			     (double) yValue * noise_squish  / 1);
+    double noiseValue = v0 * 4.0 / 7.0 + v1 * 2.0 / 7.0 + v2 * 1.0 / 7.0;
+
+    noiseValue += 0.5;
+
+    //probabl not necessary to clamp
+    /* if(noiseValue < 0.0){ */
+    /* 	noiseValue = 0.0; */
+    /* } */
+    /* if(noiseValue > 1.0){ */
+    /* 	noiseValue = 1.0; */
+    /* } */
+
+     return noiseValue;
+}
 int main(){
     const double waterLevel = 0.4;
-    
     srand(time(NULL));
+    //somewhere between 0 and 16 is probably good
+    //noise_squish = (rand() / (double) RAND_MAX) * 16.0;
+    noise_squish = 12.0;
+    open_simplex_noise(105421, &ctx);
     
     bool success = true;
     
@@ -43,13 +72,12 @@ int main(){
     GLuint vertexBufferObject;
 
     //cubicNoiseConfig config = cubicNoiseConfig2D(2541512, 10, 42949672, 42949672);
-    struct osn_context *ctx;
-    open_simplex_noise(rand(), &ctx);
 
-    double v0, v1, v2;
 
-    const double noise_squish = (rand() / (double) RAND_MAX) * 16.0;
-    const double height_squish = 3.0;
+
+
+
+
 
     const float increment = (1.0f / dimensions); 
     
@@ -64,22 +92,8 @@ int main(){
     for(int i = 0; i < dimensions; i++){
     	float xValue = -0.5f + increment;
     	for(int k = 0; k < dimensions; k++){
-	    /* Use three octaves: frequency N, N/2 and N/4 with relative amplitudes 4:2:1. */
-	    v0 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 4.0,
-	    			     (double) yValue * noise_squish  / 4.0);
-	    v1 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 2.0,
-	    			     (double) yValue * noise_squish  / 2);
-	    v2 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 1.0,
-	    			     (double) yValue * noise_squish  / 1);
-	    double noiseValue = v0 * 4.0 / 7.0 + v1 * 2.0 / 7.0 + v2 * 1.0 / 7.0;
-
-	    rgb = noiseValue + 0.5;//(noiseValue * 10.0 + 1.0)/2.0;
-	    if(rgb < 0.0){
-		rgb = 0.0;
-	    }
-	    if(rgb > 1.0){
-		rgb = 1.0;
-	    }
+	    
+	    rgb = getNoise(xValue + 1.0, yValue);
 	    
 	    bool belowWaterLevel = false;
 	    if(rgb <= waterLevel){
@@ -96,7 +110,7 @@ int main(){
     	    vertices[counter + 5] = rgb;
 
 	    if(belowWaterLevel == true){
-		vertices[counter + 5] = (1.0 - waterLevel) + noiseValue + 0.5;
+		vertices[counter + 5] = (1.0 - waterLevel) + rgb;
 		//vertices[counter + 2] = waterLevel / height_squish;
 	    }
     	    xValue += increment;
