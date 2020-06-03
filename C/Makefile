@@ -6,6 +6,8 @@ BIN=./bin/
 IFLAGS= -lglfw3 -lGLEW -lGL -lpthread -lX11 -ldl -lm
 DIRS=-Isrc/headers/
 
+rebuild: clean link
+
 make link: main $(BIN)HelloWorld.o
 	ln -s $(BIN)HelloWorld.o HelloWorld
 

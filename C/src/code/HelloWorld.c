@@ -51,20 +51,18 @@ int main(){
     const double noise_squish = (rand() / (double) RAND_MAX) * 16.0;
     const double height_squish = 3.0;
 
-    const float increment = (1.0f / dimensions) * 2.0f;
+    const float increment = (1.0f / dimensions); 
     
     
-    /* double min = 10; */
-    /* double max = -10; */
     double rgb;
 
-    float yValue = 1.0f - (increment / 2.0f);
+    float yValue = 0.5f - increment;
     const int verticesSize = dimensions * dimensions * 6;
     float *vertices = malloc(sizeof(float) * verticesSize);
     int counter = 0;
     
     for(int i = 0; i < dimensions; i++){
-    	float xValue = -1.0f + (increment / 2.0f);
+    	float xValue = -0.5f + increment;
     	for(int k = 0; k < dimensions; k++){
 	    /* Use three octaves: frequency N, N/2 and N/4 with relative amplitudes 4:2:1. */
 	    v0 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 4.0,
@@ -91,7 +89,7 @@ int main(){
 
     	    vertices[counter] = xValue;
     	    vertices[counter + 1] = yValue;
-    	    vertices[counter + 2] = rgb / height_squish;
+    	    vertices[counter + 2] = 0.0f;// rgb / height_squish;
 
 	    vertices[counter + 3] = rgb;
 	    vertices[counter + 4] = rgb;
@@ -99,7 +97,7 @@ int main(){
 
 	    if(belowWaterLevel == true){
 		vertices[counter + 5] = (1.0 - waterLevel) + noiseValue + 0.5;
-		vertices[counter + 2] = waterLevel / height_squish;
+		//vertices[counter + 2] = waterLevel / height_squish;
 	    }
     	    xValue += increment;
 	    counter+=6;
@@ -163,14 +161,15 @@ int main(){
     vec3 rotationAxis = {0.0f, 0.0f, 1.0f};
 
     //uses radians not degrees, clockwise is negative (45 degree clockwise rotation)
-    glm_rotate(transformation, -M_PI/4.0f, rotationAxis);
+    //glm_rotate(transformation, -M_PI/4.0f, rotationAxis);
+    glm_perspective_resize(windowHeight * 1.0 / windowWidth, transformation);
     GLint uniTrans = glGetUniformLocation(shaderProgram, "model");
 
     glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transformation[0]);
 
-    vec3 eye = {1.2f, 1.2f, 1.2f};
+    vec3 eye = {0.0f, 0.0f, -1.2f};
     vec3 center = {0.0f, 0.0f, 0.0f};
-    vec3 up = {0.0f, 0.0f, 1.0f};
+    vec3 up = {0.0f, -1.0f, 0.0f};
     mat4 view;
     glm_lookat(eye, center, up, view);
 
@@ -197,7 +196,6 @@ int main(){
 
     glfwSetScrollCallback(window, scrollHandler);
     do{
-	// Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 	mouseInputHandler(window, 0.03, 0.05);
@@ -288,7 +286,13 @@ void mouseInputHandler(GLFWwindow* window, double sensitivity, double edgePercen
 
 
 void scrollHandler(GLFWwindow *window, double xoffset, double yoffset){
+    //this will change as we zoom in and out, might use it later for non-linear scaling
+    //fprintf(stderr, "%f\n", transformation[3][2]);
+
     glm_translate_z(transformation, yoffset * 0.03);
-    glm_translate_y(transformation, yoffset * 0.03);
 }
+
+
+
+
 
