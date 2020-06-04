@@ -13,8 +13,22 @@
 #define windowWidth 1024
 #define windowHeight 768
 
+#define x_val 0
+#define y_val 1
+#define z_val 2
+#define red 3
+#define green 4
+#define blue 5
+
+typedef float vertices_t[dimensions][dimensions][6];
+const int verticesSize = dimensions * dimensions * 6;
+float *vertices;
+const float increment = (1.0f / dimensions);
+
 static mat4 transformation = GLM_MAT4_IDENTITY_INIT;
 struct osn_context *ctx;
+
+const double waterLevel = 0.4;
 double noise_squish;
 
 double getNoise(double xValue, double yValue){
@@ -30,6 +44,10 @@ double getNoise(double xValue, double yValue){
     double noiseValue = v0 * 4.0 / 7.0 + v1 * 2.0 / 7.0 + v2 * 1.0 / 7.0;
 
     noiseValue += 0.5;
+    if(noiseValue <= waterLevel){
+	noiseValue = 0.0f;
+    }
+
 
     //probabl not necessary to clamp
     /* if(noiseValue < 0.0){ */
@@ -42,7 +60,7 @@ double getNoise(double xValue, double yValue){
      return noiseValue;
 }
 int main(){
-    const double waterLevel = 0.4;
+
     srand(time(NULL));
     //somewhere between 0 and 16 is probably good
     //noise_squish = (rand() / (double) RAND_MAX) * 16.0;
@@ -71,35 +89,22 @@ int main(){
     GLuint elementBufferObject;
     GLuint vertexBufferObject;
 
-    //cubicNoiseConfig config = cubicNoiseConfig2D(2541512, 10, 42949672, 42949672);
 
 
-
-
-
-
-
-    const float increment = (1.0f / dimensions); 
-    
-    
     double rgb;
+    float yValue = 0.5f;
 
-    float yValue = 0.5f - increment;
-    const int verticesSize = dimensions * dimensions * 6;
-    float *vertices = malloc(sizeof(float) * verticesSize);
+    vertices = malloc(sizeof(double) * verticesSize);
     int counter = 0;
-    
+
     for(int i = 0; i < dimensions; i++){
-    	float xValue = -0.5f + increment;
+    	float xValue = -0.5f;
     	for(int k = 0; k < dimensions; k++){
-	    
-	    rgb = getNoise(xValue + 1.0, yValue);
-	    
-	    bool belowWaterLevel = false;
-	    if(rgb <= waterLevel){
-		belowWaterLevel = true;
-		rgb = 0.0f;
+	    if(k == 0 && i == 0){
+		fprintf(stderr, "%f,%f noise: %f\n",xValue, yValue, getNoise(xValue, yValue));
 	    }
+	    rgb = getNoise(xValue, yValue);
+	    //fprintf(stderr, "%f\t%f\t%f\n",rgb, getNoise(xValue, yValue), getNoise(xValue, yValue));
 
     	    vertices[counter] = xValue;
     	    vertices[counter + 1] = yValue;
@@ -109,8 +114,8 @@ int main(){
 	    vertices[counter + 4] = rgb;
     	    vertices[counter + 5] = rgb;
 
-	    if(belowWaterLevel == true){
-		vertices[counter + 5] = (1.0 - waterLevel) + rgb;
+	    if(rgb == 0.0){
+		vertices[counter + 5] = (1.0 - waterLevel);
 		//vertices[counter + 2] = waterLevel / height_squish;
 	    }
     	    xValue += increment;
@@ -120,8 +125,8 @@ int main(){
     }
     /* fprintf(stderr, "min: %f\n", min); */
     /* fprintf(stderr, "max: %f\n", max); */
+    //    fprintf(stderr, "%f\n", ((transform_t*)vertices)[3][3][1]);
 
-    open_simplex_noise_free(ctx);
     
     //we're looping but exlcuding the last column AND row
     //we're going to connect a point to the point one colum to its right and one row below to make a trianglecolor
@@ -238,6 +243,7 @@ int main(){
     free(vertexBuffer);
     free(elements);
     free(vertices);
+    open_simplex_noise_free(ctx);
     glfwTerminate();
 
     return success;
@@ -302,9 +308,34 @@ void mouseInputHandler(GLFWwindow* window, double sensitivity, double edgePercen
 void scrollHandler(GLFWwindow *window, double xoffset, double yoffset){
     //this will change as we zoom in and out, might use it later for non-linear scaling
     //fprintf(stderr, "%f\n", transformation[3][2]);
+    static double zoom = 0.0;
+    double result;
 
-    glm_translate_z(transformation, yoffset * 0.03);
+    zoom += yoffset;
+    //glm_translate_z(transformation, yoffset * 0.03);
+    for(int i = 0; i < dimensions; i++){
+	for(int k = 0; k < dimensions; k++){
+	    float x = (*(vertices_t*)vertices)[i][k][x_val];
+	    float y = (*(vertices_t*)vertices)[i][k][y_val];
+
+	    x *= 1.0 - zoom * 0.03;
+	    y *= 1.0 - zoom * 0.03;
+	    result = getNoise(x, y);
+
+	    (*(vertices_t*)vertices)[i][k][red] = result;
+	    (*(vertices_t*)vertices)[i][k][blue] = result;
+	    (*(vertices_t*)vertices)[i][k][green] = result;
+
+	    if(result == 0.0){
+		(*(vertices_t*)vertices)[i][k][blue] = (1.0 - waterLevel);
+	    }
+	}
+    }
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * verticesSize, vertices, GL_STATIC_DRAW);
 }
+
+
+
 
 
 
