@@ -3,7 +3,7 @@ C=./src/code/
 H=./src/headers/
 GL=./src/shaders/
 BIN=./bin/
-IFLAGS= -lglfw3 -lGLEW -lGL -lpthread -lX11 -ldl -lm
+IFLAGS= -lglfw3 -lGLEW -lGL -lpthread -lX11 -ldl -lm -Wall
 DIRS=-Isrc/headers/
 
 rebuild: clean link

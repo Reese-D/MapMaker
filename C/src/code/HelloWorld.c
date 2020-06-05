@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <cglm/call.h>
 #include <time.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include "HelloWorld.h"
 #include "ShaderLoader.h"
@@ -12,6 +15,8 @@
 #define dimensions 1000
 #define windowWidth 1024
 #define windowHeight 768
+
+#define threadCount 16
 
 #define x_val 0
 #define y_val 1
@@ -31,8 +36,35 @@ struct osn_context *ctx;
 const double waterLevel = 0.4;
 double noise_squish;
 
+pthread_t threads[threadCount];
+pthread_cond_t conditions[threadCount] = { PTHREAD_COND_INITIALIZER };
+pthread_mutex_t locks[threadCount] = { PTHREAD_MUTEX_INITIALIZER };
+
+static bool terminateThreads = false;
+
+pthread_mutex_t countMutex;
+
+void *threadFunc(void *voidargp){
+    static int count;
+    
+    pthread_mutex_lock(&countMutex);
+    int index = count++;
+    pthread_mutex_unlock(&countMutex);
+    
+    fprintf(stderr, "thread: %i created\n", index);
+    while(!terminateThreads){
+	fprintf(stderr, "thread %i is about to wait\n", index);
+	pthread_cond_wait(&conditions[index], &locks[index]);
+	fprintf(stderr, "%i did some work\n", index);
+    }
+    fprintf(stderr, "terminating thread %i\n", index);
+
+    return NULL;
+}
+
 double getNoise(double xValue, double yValue){
-    double v0, v1, v2;
+    double v0, v1, v2;    
+    
     
     /* Use three octaves: frequency N, N/2 and N/4 with relative amplitudes 4:2:1. */
     v0 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 4.0,
@@ -48,20 +80,16 @@ double getNoise(double xValue, double yValue){
 	noiseValue = 0.0f;
     }
 
-
-    //probabl not necessary to clamp
-    /* if(noiseValue < 0.0){ */
-    /* 	noiseValue = 0.0; */
-    /* } */
-    /* if(noiseValue > 1.0){ */
-    /* 	noiseValue = 1.0; */
-    /* } */
-
      return noiseValue;
 }
 int main(){
 
     srand(time(NULL));
+
+    for(int i = 0; i < threadCount; i++){
+	pthread_create(&(threads[i]), NULL, threadFunc, NULL);
+    }
+
     //somewhere between 0 and 16 is probably good
     //noise_squish = (rand() / (double) RAND_MAX) * 16.0;
     noise_squish = 12.0;
@@ -85,11 +113,8 @@ int main(){
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);// Ensure we can capture the escape key being pressed below
     glClearColor(0.0f, 0.0f, 0.4f, 0.0f);
 
-    GLuint* bufferObjects;
     GLuint elementBufferObject;
     GLuint vertexBufferObject;
-
-
 
     double rgb;
     float yValue = 0.5f;
@@ -177,9 +202,10 @@ int main(){
     glUseProgram(shaderProgram);
 
     //TRANSFORMS
-    vec3 rotationAxis = {0.0f, 0.0f, 1.0f};
+
 
     //uses radians not degrees, clockwise is negative (45 degree clockwise rotation)
+    //vec3 rotationAxis = {0.0f, 0.0f, 1.0f};
     //glm_rotate(transformation, -M_PI/4.0f, rotationAxis);
     glm_perspective_resize(windowHeight * 1.0 / windowWidth, transformation);
     GLint uniTrans = glGetUniformLocation(shaderProgram, "model");
@@ -246,6 +272,25 @@ int main(){
     open_simplex_noise_free(ctx);
     glfwTerminate();
 
+    /* for(int i = 0; i < threadCount; i++){ */
+    /* 	pthread_cond_signal(&conditions[i]);//signal one more time to make sure they hit the conditional loop again */
+    /* 	pthread_cond_signal(&conditions[i]);//signal one more time to make sure they hit the conditional loop again */
+    /* } */
+    /* for(int i = 0; i < threadCount; i++){ */
+    /* 	pthread_cond_signal(&conditions[i]);//signal one more time to make sure they hit the conditional loop again */
+    /* 	pthread_cond_signal(&conditions[i]);//signal one more time to make sure they hit the conditional loop again */
+    /* } */
+    terminateThreads = true;
+    for(int i = 0; i < threadCount; i++){
+	fprintf(stderr, "signaling %i\n", i);
+	pthread_cond_broadcast(&conditions[i]);//signal one more time to make sure they hit the conditional loop again
+    }
+
+    for(int i = 0; i < threadCount; i++){
+	pthread_join(threads[i], NULL);
+    }
+
+
     return success;
 }
 
@@ -311,6 +356,13 @@ void scrollHandler(GLFWwindow *window, double xoffset, double yoffset){
     static double zoom = 0.0;
     double result;
 
+    //create thread
+    //pthread_cond_wait wait for some event
+    //pthread_signal_broadcast broadcast this event occured so that threads can do something until locking back up
+    //http://web.cs.wpi.edu/~cs3013/c12/Common/LockingWaitQueues.pdf
+    clock_t start, end;
+
+    start = clock();
     zoom += yoffset;
     //glm_translate_z(transformation, yoffset * 0.03);
     for(int i = 0; i < dimensions; i++){
@@ -318,8 +370,8 @@ void scrollHandler(GLFWwindow *window, double xoffset, double yoffset){
 	    float x = (*(vertices_t*)vertices)[i][k][x_val];
 	    float y = (*(vertices_t*)vertices)[i][k][y_val];
 
-	    x *= 1.0 - zoom * 0.03;
-	    y *= 1.0 - zoom * 0.03;
+	    x *= 1.0 - zoom * 0.1;
+	    y *= 1.0 - zoom * 0.1;
 	    result = getNoise(x, y);
 
 	    (*(vertices_t*)vertices)[i][k][red] = result;
@@ -331,13 +383,11 @@ void scrollHandler(GLFWwindow *window, double xoffset, double yoffset){
 	    }
 	}
     }
+    end = clock();
+    fprintf(stderr, "clock time used: %f\n", ((double)(end-start)) / CLOCKS_PER_SEC);
+
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * verticesSize, vertices, GL_STATIC_DRAW);
+
+
 }
-
-
-
-
-
-
-
 
