@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <cglm/call.h>
@@ -12,11 +13,11 @@
 #include "ReadFile.h"
 #include "open-simplex-noise.h"
 
-#define dimensions 1000
-#define windowWidth 1024
-#define windowHeight 768
+#define dimensions 1024
+#define windowWidth 1440
+#define windowHeight 1440
 
-#define threadCount 16
+#define threadCount 8 //max 16 right now
 
 #define x_val 0
 #define y_val 1
@@ -42,22 +43,54 @@ pthread_mutex_t locks[threadCount] = { PTHREAD_MUTEX_INITIALIZER };
 
 static bool terminateThreads = false;
 
-pthread_mutex_t countMutex;
+static uint64_t workStatus = 0;
+const uint64_t workComplete = pow(2,threadCount) - 1;
+
+static double totalZoom = 0.0;
+
+pthread_mutex_t workMutex;
+
+//assumes little endian
+void printBits(size_t const size, void const * const ptr)
+{
+    unsigned char *b = (unsigned char*) ptr;
+    unsigned char byte;
+    int i, j;
+
+    for (i=size-1;i>=0;i--)
+    {
+        for (j=7;j>=0;j--)
+        {
+            byte = (b[i] >> j) & 1;
+            printf("%u", byte);
+        }
+    }
+    puts("");
+}
 
 void *threadFunc(void *voidargp){
     static int count;
     
-    pthread_mutex_lock(&countMutex);
+    pthread_mutex_lock(&workMutex);
     int index = count++;
-    pthread_mutex_unlock(&countMutex);
+    pthread_mutex_unlock(&workMutex);
     
-    fprintf(stderr, "thread: %i created\n", index);
+    //fprintf(stderr, "thread: %i created\n", index);
     while(!terminateThreads){
-	fprintf(stderr, "thread %i is about to wait\n", index);
 	pthread_cond_wait(&conditions[index], &locks[index]);
-	fprintf(stderr, "%i did some work\n", index);
+	//do work here
+	if(terminateThreads){
+	    break;
+	}
+
+	//fprintf(stderr, "thread %i starting work...\n", index);
+	zoom(index);
+	//set completion status
+	pthread_mutex_lock(&workMutex);
+	workStatus |= 1 << index;
+	pthread_mutex_unlock(&workMutex);
     }
-    fprintf(stderr, "terminating thread %i\n", index);
+    //fprintf(stderr, "terminating thread %i\n", index);
 
     return NULL;
 }
@@ -65,8 +98,7 @@ void *threadFunc(void *voidargp){
 double getNoise(double xValue, double yValue){
     double v0, v1, v2;    
     
-    
-    /* Use three octaves: frequency N, N/2 and N/4 with relative amplitudes 4:2:1. */
+     /* Use three octaves: frequency N, N/2 and N/4 with relative amplitudes 4:2:1. */
     v0 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 4.0,
 			     (double) yValue * noise_squish  / 4.0);
     v1 = open_simplex_noise2(ctx, (double) xValue * noise_squish / 2.0,
@@ -82,8 +114,8 @@ double getNoise(double xValue, double yValue){
 
      return noiseValue;
 }
-int main(){
 
+int main(){
     srand(time(NULL));
 
     for(int i = 0; i < threadCount; i++){
@@ -126,7 +158,7 @@ int main(){
     	float xValue = -0.5f;
     	for(int k = 0; k < dimensions; k++){
 	    if(k == 0 && i == 0){
-		fprintf(stderr, "%f,%f noise: %f\n",xValue, yValue, getNoise(xValue, yValue));
+		//fprintf(stderr, "%f,%f noise: %f\n",xValue, yValue, getNoise(xValue, yValue));
 	    }
 	    rgb = getNoise(xValue, yValue);
 	    //fprintf(stderr, "%f\t%f\t%f\n",rgb, getNoise(xValue, yValue), getNoise(xValue, yValue));
@@ -173,8 +205,8 @@ int main(){
 	}
     }
 
-    fprintf(stderr, "vertice count: %i\n", verticesSize);
-    fprintf(stderr, "element count: %i\n", elementSize);
+    //fprintf(stderr, "vertice count: %i\n", verticesSize);
+    //fprintf(stderr, "element count: %i\n", elementSize);
 
     glGenBuffers(1, &vertexBufferObject);
     glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObject);
@@ -272,18 +304,10 @@ int main(){
     open_simplex_noise_free(ctx);
     glfwTerminate();
 
-    /* for(int i = 0; i < threadCount; i++){ */
-    /* 	pthread_cond_signal(&conditions[i]);//signal one more time to make sure they hit the conditional loop again */
-    /* 	pthread_cond_signal(&conditions[i]);//signal one more time to make sure they hit the conditional loop again */
-    /* } */
-    /* for(int i = 0; i < threadCount; i++){ */
-    /* 	pthread_cond_signal(&conditions[i]);//signal one more time to make sure they hit the conditional loop again */
-    /* 	pthread_cond_signal(&conditions[i]);//signal one more time to make sure they hit the conditional loop again */
-    /* } */
     terminateThreads = true;
     for(int i = 0; i < threadCount; i++){
-	fprintf(stderr, "signaling %i\n", i);
-	pthread_cond_broadcast(&conditions[i]);//signal one more time to make sure they hit the conditional loop again
+	//fprintf(stderr, "signaling %i\n", i);
+	pthread_cond_signal(&conditions[i]);//signal one more time to make sure they hit the conditional loop again
     }
 
     for(int i = 0; i < threadCount; i++){
@@ -311,7 +335,7 @@ void setup(){
 bool initializeGlew(){
     glewExperimental = true;
     if(glewInit()){
-	fprintf(stderr, "Failed to intialize GLEW\n");
+	//fprintf(stderr, "Failed to intialize GLEW\n");
 	return false;
     }
     return true;
@@ -319,12 +343,11 @@ bool initializeGlew(){
 
 bool initializeGlfw(){
     if(!glfwInit()){
-	fprintf(stderr, "Failed to initialize GLFW\n");
+	//fprintf(stderr, "Failed to initialize GLFW\n");
 	return false;
     }
     return true;
 }
-
 
 void mouseInputHandler(GLFWwindow* window, double sensitivity, double edgePercentage){
     double xpos, ypos;
@@ -352,26 +375,37 @@ void mouseInputHandler(GLFWwindow* window, double sensitivity, double edgePercen
 
 void scrollHandler(GLFWwindow *window, double xoffset, double yoffset){
     //this will change as we zoom in and out, might use it later for non-linear scaling
-    //fprintf(stderr, "%f\n", transformation[3][2]);
-    static double zoom = 0.0;
+    //fprintfp(stderr, "%f\n", transformation[3][2]);
+    totalZoom += (yoffset * 0.03);
+    for(int i = 0; i < threadCount; i++){
+	pthread_cond_signal(&conditions[i]);
+    }
+
+    while(workStatus != workComplete){
+	//do nothing spinlock while threads finish up
+    }
+    
+    pthread_mutex_lock(&workMutex);
+    workStatus = 0;
+    pthread_mutex_unlock(&workMutex);
+    
+    //fprintf(stderr, "finished\n");
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * verticesSize, vertices, GL_STATIC_DRAW);
+}
+
+void zoom(int index){
     double result;
+    
+    int start = (dimensions / threadCount) * index;
+    int end = (dimensions / threadCount) * (index + 1);
 
-    //create thread
-    //pthread_cond_wait wait for some event
-    //pthread_signal_broadcast broadcast this event occured so that threads can do something until locking back up
-    //http://web.cs.wpi.edu/~cs3013/c12/Common/LockingWaitQueues.pdf
-    clock_t start, end;
-
-    start = clock();
-    zoom += yoffset;
-    //glm_translate_z(transformation, yoffset * 0.03);
-    for(int i = 0; i < dimensions; i++){
+    for(int i = start; i < end; i++){
 	for(int k = 0; k < dimensions; k++){
 	    float x = (*(vertices_t*)vertices)[i][k][x_val];
 	    float y = (*(vertices_t*)vertices)[i][k][y_val];
 
-	    x *= 1.0 - zoom * 0.1;
-	    y *= 1.0 - zoom * 0.1;
+	    x *= 1.0 - totalZoom;
+	    y *= 1.0 - totalZoom;
 	    result = getNoise(x, y);
 
 	    (*(vertices_t*)vertices)[i][k][red] = result;
@@ -383,11 +417,17 @@ void scrollHandler(GLFWwindow *window, double xoffset, double yoffset){
 	    }
 	}
     }
-    end = clock();
-    fprintf(stderr, "clock time used: %f\n", ((double)(end-start)) / CLOCKS_PER_SEC);
-
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * verticesSize, vertices, GL_STATIC_DRAW);
-
-
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
